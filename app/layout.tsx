@@ -25,6 +25,7 @@ export default function RootLayout({
           name="description"
           content="Join the Warhorse Monad raffle giveaway. Submit your EVM address for a chance to win Monad tokens"
         />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
       </Head>
       <body className={inter.className}>
         {children}
