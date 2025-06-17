@@ -108,15 +108,8 @@ export function AdminInterface({
     });
 
     try {
-      // Generate a contest name based on the current date and time
-      const contestName = `Monad Giveaway Contest ${new Date().toLocaleString(
-        "id-ID",
-        { timeZone: "Asia/Jakarta" }
-      )}`;
-
       await createNewContest(
-        contestName,
-        monadAmountNum,
+        monadAmount,
         contestType,
         duration,
         participants,
