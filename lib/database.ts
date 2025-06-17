@@ -25,7 +25,6 @@ const sql = neon(databaseUrl)
 
 export interface Contest {
   id: number
-  contest_name: string
   monad_amount: string
   duration_hours: number
   duration_minutes: number
@@ -266,7 +265,6 @@ export async function createContest(
 
     const result = await sql`
       INSERT INTO contests (
-        contest_name,
         monad_amount, 
         contest_type, 
         duration_minutes, 
@@ -310,7 +308,6 @@ export async function createContest(
 
     console.log("Contest successfully created in database:", {
       id: createdContest.id,
-      name: createdContest.contest_name,
       status: createdContest.status,
       end_time: createdContest.end_time,
       duration_minutes: createdContest.duration_minutes,
@@ -416,7 +413,7 @@ export async function selectWinners(contestId: number) {
 export async function getAllWinners(): Promise<(Winner & { contest: Contest })[]> {
   try {
     const result = await sql`
-      SELECT w.*, c.contest_name, c.start_time, c.end_time, c.duration_minutes, c.contest_type, c.max_participants, c.winner_count
+      SELECT w.*, c.start_time, c.end_time, c.duration_minutes, c.contest_type, c.max_participants, c.winner_count
       FROM winners w
       JOIN contests c ON w.contest_id = c.id
       ORDER BY w.won_at DESC
