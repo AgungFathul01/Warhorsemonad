@@ -63,12 +63,111 @@ export function ContestInterface({
   const [message, setMessage] = useState("");
   const [timeLeft, setTimeLeft] = useState("");
   const [completedTasks, setCompletedTasks] = useState<Set<number>>(new Set());
-  const [hasClickedFollow, setHasClickedFollow] = useState(false);
 
-  const handleTaskComplete = (taskId: number) => {
-    setCompletedTasks((prev: Set<number>) => new Set([...prev, taskId]));
-    if (tasks.find((t) => t.id === taskId)?.task_type === "follow_twitter") {
-      setHasClickedFollow(true);
+  // Initialize completed tasks from props
+  useEffect(() => {
+    const completedTaskIds = new Set(
+      userTaskCompletions.map((utc) => utc.task_id)
+    );
+    setCompletedTasks(completedTaskIds);
+  }, [userTaskCompletions]);
+
+  // Check if contest has ended naturally (duration or participant limit)
+  const checkContestEnd = () => {
+    let ended = false;
+
+    // Duration-based contest end check - only check if not manually stopped
+    if (
+      contest.contest_type === "duration" &&
+      contest.end_time &&
+      !contest.manually_stopped
+    ) {
+      // Use current time consistently
+      const now = new Date().getTime();
+      const endTime = new Date(contest.end_time).getTime();
+      ended = now >= endTime;
+
+      // Debug logging with timezone info
+      if (contest.contest_type === "duration") {
+        console.log("Duration contest check:", {
+          now: new Date(now).toISOString(),
+          nowLocal: new Date(now).toLocaleString("id-ID", {
+            timeZone: "Asia/Jakarta",
+          }),
+          endTime: new Date(endTime).toISOString(),
+          endTimeLocal: new Date(endTime).toLocaleString("id-ID", {
+            timeZone: "Asia/Jakarta",
+          }),
+          ended,
+          manually_stopped: contest.manually_stopped,
+          status: contest.status,
+          timeDifferenceMinutes: (endTime - now) / (1000 * 60),
+        });
+      }
+    }
+
+    // Participant-based contest end check
+    if (
+      contest.contest_type === "participants" &&
+      contest.max_participants &&
+      submissions.length >= contest.max_participants
+    ) {
+      ended = true;
+    }
+
+    return ended;
+  };
+
+  // Process expired contests on client side when component mounts
+  useEffect(() => {
+    const checkExpiredContests = async () => {
+      try {
+        await processExpiredContests();
+      } catch (error) {
+        console.error("Error processing expired contests:", error);
+      }
+    };
+
+    // Only check if contest is active and might be expired
+    if (contest.status === "active" && checkContestEnd()) {
+      checkExpiredContests();
+    }
+  }, [contest.id, contest.status]);
+
+  useEffect(() => {
+    if (
+      contest.contest_type === "duration" &&
+      contest.end_time &&
+      !contest.manually_stopped
+    ) {
+      const updateTimer = () => {
+        const now = new Date().getTime();
+        const endTime = new Date(contest.end_time).getTime();
+        const difference = endTime - now;
+
+        if (difference > 0) {
+          const hours = Math.floor(difference / (1000 * 60 * 60));
+          const minutes = Math.floor(
+            (difference % (1000 * 60 * 60)) / (1000 * 60)
+          );
+          const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+          setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+        } else {
+          setTimeLeft("Contest Ended");
+        }
+      };
+
+      updateTimer();
+      const timer = setInterval(updateTimer, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [contest.end_time, contest.contest_type, contest.manually_stopped]);
+
+  const handleTaskComplete = async (taskId: number) => {
+    try {
+      setCompletedTasks((prev: Set<number>) => new Set([...prev, taskId]));
+    } catch (error) {
+      console.error("Error marking task completed:", error);
     }
   };
 
@@ -146,7 +245,7 @@ Follow for more 👉 @agungfathul
   const allRequiredTasksCompleted = requiredTasks.every((task) =>
     completedTasks.has(task.id)
   );
-  const inputLocked = !hasClickedFollow;
+  const inputLocked = false;
 
   // Debug logging for contest state with timezone info
   console.log("Contest state (with timezone):", {
@@ -473,25 +572,21 @@ Follow for more 👉 @agungfathul
                       <Input
                         id="address"
                         type="text"
-                        placeholder={inputLocked ? "Click Follow first to unlock" : "0x..."}
+                        placeholder="0x..."
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        className={`h-12 md:h-14 text-base md:text-lg font-mono border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 ${
-                          inputLocked ? "bg-gray-100 cursor-not-allowed" : "bg-white"
-                        }`}
-                        disabled={isSubmitting || inputLocked}
+                        className="h-12 md:h-14 text-base md:text-lg font-mono border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                        disabled={isSubmitting}
                       />
                     </div>
                     <Button
                       type="submit"
                       size="lg"
                       className="w-full h-12 md:h-14 text-base md:text-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg font-semibold"
-                      disabled={isSubmitting || !address || inputLocked}
+                      disabled={isSubmitting || !address}
                     >
                       {isSubmitting
                         ? "Submitting..."
-                        : inputLocked
-                        ? "🔒 Click Follow First"
                         : "🚀 Submit & Join Raffle"}
                     </Button>
                     {message && (
