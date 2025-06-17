@@ -25,6 +25,7 @@ const sql = neon(databaseUrl)
 
 export interface Contest {
   id: number
+  contest_name: string
   monad_amount: string
   duration_hours: number
   duration_minutes: number
@@ -52,6 +53,24 @@ export interface Winner {
   evm_address: string
   monad_amount: string
   won_at: string
+}
+
+export interface ContestTask {
+  id: number
+  contest_id: number
+  task_type: string
+  task_description: string
+  task_url?: string
+  is_required: boolean
+  created_at: string
+}
+
+export interface UserTaskCompletion {
+  id: number
+  contest_id: number
+  evm_address: string
+  task_id: number
+  completed_at: string
 }
 
 export async function getCurrentContest(): Promise<Contest | null> {
@@ -98,6 +117,47 @@ export async function getContestSubmissions(contestId: number): Promise<Submissi
   }
 }
 
+export async function getContestTasks(contestId: number): Promise<ContestTask[]> {
+  try {
+    const result = await sql`
+      SELECT * FROM contest_tasks 
+      WHERE contest_id = ${contestId}
+      ORDER BY created_at ASC
+    `
+    return result as ContestTask[]
+  } catch (error) {
+    console.error("Error fetching contest tasks:", error)
+    return []
+  }
+}
+
+export async function getUserTaskCompletions(contestId: number, evmAddress: string): Promise<UserTaskCompletion[]> {
+  try {
+    const result = await sql`
+      SELECT * FROM user_task_completions 
+      WHERE contest_id = ${contestId} AND evm_address = ${evmAddress}
+    `
+    return result as UserTaskCompletion[]
+  } catch (error) {
+    console.error("Error fetching user task completions:", error)
+    return []
+  }
+}
+
+export async function markTaskCompleted(contestId: number, evmAddress: string, taskId: number) {
+  try {
+    await sql`
+      INSERT INTO user_task_completions (contest_id, evm_address, task_id)
+      VALUES (${contestId}, ${evmAddress}, ${taskId})
+      ON CONFLICT (contest_id, evm_address, task_id) DO NOTHING
+    `
+    return { success: true }
+  } catch (error) {
+    console.error("Error marking task completed:", error)
+    return { success: false, error: "Failed to mark task as completed" }
+  }
+}
+
 export async function submitAddress(contestId: number, evmAddress: string) {
   try {
     // Check if contest allows submissions
@@ -112,6 +172,24 @@ export async function submitAddress(contestId: number, evmAddress: string) {
 
     if (contest[0].submissions_stopped) {
       return { success: false, error: "Submissions have been stopped by admin" }
+    }
+
+    // Check if all required tasks are completed
+    const requiredTasks = await sql`
+      SELECT id FROM contest_tasks 
+      WHERE contest_id = ${contestId} AND is_required = true
+    `
+
+    const completedTasks = await sql`
+      SELECT task_id FROM user_task_completions 
+      WHERE contest_id = ${contestId} AND evm_address = ${evmAddress}
+    `
+
+    const completedTaskIds = completedTasks.map((ct) => ct.task_id)
+    const uncompletedRequiredTasks = requiredTasks.filter((rt) => !completedTaskIds.includes(rt.id))
+
+    if (uncompletedRequiredTasks.length > 0) {
+      return { success: false, error: "Please complete all required tasks before submitting" }
     }
 
     await sql`
@@ -129,6 +207,7 @@ export async function submitAddress(contestId: number, evmAddress: string) {
 }
 
 export async function createContest(
+  contestName: string,
   monadAmount: number,
   contestType: "duration" | "participants",
   durationMinutes?: number,
@@ -137,6 +216,7 @@ export async function createContest(
 ) {
   try {
     console.log("Database createContest called with:", {
+      contestName,
       monadAmount,
       contestType,
       durationMinutes,
@@ -186,6 +266,7 @@ export async function createContest(
 
     const result = await sql`
       INSERT INTO contests (
+        contest_name,
         monad_amount, 
         contest_type, 
         duration_minutes, 
@@ -198,6 +279,7 @@ export async function createContest(
         submissions_stopped
       )
       VALUES (
+        ${contestName},
         ${monadAmount}, 
         ${contestType}, 
         ${durationMinutes || null}, 
@@ -213,8 +295,22 @@ export async function createContest(
     `
 
     const createdContest = result[0] as Contest
+
+    // Create default follow task for the contest
+    await sql`
+      INSERT INTO contest_tasks (contest_id, task_type, task_description, task_url, is_required)
+      VALUES (
+        ${createdContest.id},
+        'follow_twitter',
+        'Follow @agungfathul on X (Twitter)',
+        'https://x.com/agungfathul',
+        true
+      )
+    `
+
     console.log("Contest successfully created in database:", {
       id: createdContest.id,
+      name: createdContest.contest_name,
       status: createdContest.status,
       end_time: createdContest.end_time,
       duration_minutes: createdContest.duration_minutes,
@@ -226,6 +322,26 @@ export async function createContest(
     return createdContest
   } catch (error) {
     console.error("Error creating contest:", error)
+    throw error
+  }
+}
+
+export async function addContestTask(
+  contestId: number,
+  taskType: string,
+  taskDescription: string,
+  taskUrl?: string,
+  isRequired = true,
+) {
+  try {
+    const result = await sql`
+      INSERT INTO contest_tasks (contest_id, task_type, task_description, task_url, is_required)
+      VALUES (${contestId}, ${taskType}, ${taskDescription}, ${taskUrl || null}, ${isRequired})
+      RETURNING *
+    `
+    return result[0] as ContestTask
+  } catch (error) {
+    console.error("Error adding contest task:", error)
     throw error
   }
 }
@@ -300,7 +416,7 @@ export async function selectWinners(contestId: number) {
 export async function getAllWinners(): Promise<(Winner & { contest: Contest })[]> {
   try {
     const result = await sql`
-      SELECT w.*, c.start_time, c.end_time, c.duration_minutes, c.contest_type, c.max_participants, c.winner_count
+      SELECT w.*, c.contest_name, c.start_time, c.end_time, c.duration_minutes, c.contest_type, c.max_participants, c.winner_count
       FROM winners w
       JOIN contests c ON w.contest_id = c.id
       ORDER BY w.won_at DESC
