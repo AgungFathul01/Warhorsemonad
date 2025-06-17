@@ -72,6 +72,14 @@ export function ContestInterface({
     setCompletedTasks(completedTaskIds);
   }, [userTaskCompletions]);
 
+  // Check if follow task is completed
+  const isFollowTaskCompleted = () => {
+    const followTask = tasks.find(
+      (task) => task.task_type === "follow_twitter" && task.is_required
+    );
+    return followTask ? completedTasks.has(followTask.id) : false;
+  };
+
   // Check if contest has ended naturally (duration or participant limit)
   const checkContestEnd = () => {
     let ended = false;
@@ -575,18 +583,36 @@ Follow for more 👉 @agungfathul
                         placeholder="0x..."
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        className="h-12 md:h-14 text-base md:text-lg font-mono border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                        disabled={isSubmitting}
+                        className={`h-12 md:h-14 text-base md:text-lg font-mono border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 ${
+                          !isFollowTaskCompleted()
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                        }`}
+                        disabled={isSubmitting || !isFollowTaskCompleted()}
                       />
+                      {!isFollowTaskCompleted() && (
+                        <p className="mt-2 text-sm text-red-600">
+                          Please complete the follow task first before
+                          submitting your address
+                        </p>
+                      )}
                     </div>
                     <Button
                       type="submit"
                       size="lg"
-                      className="w-full h-12 md:h-14 text-base md:text-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg font-semibold"
-                      disabled={isSubmitting || !address}
+                      className={`w-full h-12 md:h-14 text-base md:text-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg font-semibold ${
+                        !isFollowTaskCompleted()
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
+                      disabled={
+                        isSubmitting || !address || !isFollowTaskCompleted()
+                      }
                     >
                       {isSubmitting
                         ? "Submitting..."
+                        : !isFollowTaskCompleted()
+                        ? "Complete Follow Task First"
                         : "🚀 Submit & Join Raffle"}
                     </Button>
                     {message && (
