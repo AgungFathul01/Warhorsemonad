@@ -22,38 +22,23 @@ import {
   Calendar,
   AlertCircle,
   StopCircle,
-  CheckCircle,
-  Lock,
 } from "lucide-react"
-import { submitEVMAddress, processExpiredContests, markUserTaskCompleted } from "@/app/actions"
-import type { Contest, Submission, ContestTask, UserTaskCompletion } from "@/lib/database"
+import { submitEVMAddress, processExpiredContests } from "@/app/actions"
+import type { Contest, Submission } from "@/lib/database"
 
 interface ContestInterfaceProps {
   contest: Contest
   submissions: Submission[]
-  tasks: ContestTask[]
-  userTaskCompletions: UserTaskCompletion[]
   isExpired: boolean
 }
 
-export function ContestInterface({
-  contest,
-  submissions,
-  tasks,
-  userTaskCompletions,
-  isExpired,
-}: ContestInterfaceProps) {
+export function ContestInterface({ contest, submissions, isExpired }: ContestInterfaceProps) {
   const [address, setAddress] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState("")
   const [timeLeft, setTimeLeft] = useState("")
-  const [completedTasks, setCompletedTasks] = useState<Set<number>>(new Set())
-
-  // Initialize completed tasks from props
-  useEffect(() => {
-    const completedTaskIds = new Set(userTaskCompletions.map((utc) => utc.task_id))
-    setCompletedTasks(completedTaskIds)
-  }, [userTaskCompletions])
+  const [hasFollowed, setHasFollowed] = useState(false)
+  const [showFollowPrompt, setShowFollowPrompt] = useState(false)
 
   // Check if contest has ended naturally (duration or participant limit)
   const checkContestEnd = () => {
@@ -132,35 +117,24 @@ export function ContestInterface({
     }
   }, [contest.end_time, contest.contest_type, contest.manually_stopped])
 
-  const handleTaskComplete = async (taskId: number) => {
-    if (!address) {
-      alert("Please enter your EVM address first to track task completion")
-      return
-    }
-
-    try {
-      const result = await markUserTaskCompleted(contest.id, address, taskId)
-      if (result.success) {
-        setCompletedTasks((prev) => new Set([...prev, taskId]))
-      }
-    } catch (error) {
-      console.error("Error marking task completed:", error)
-    }
+  const handleFollowCheck = () => {
+    setShowFollowPrompt(true)
   }
 
-  const openTaskUrl = (url: string) => {
-    window.open(url, "_blank")
+  const confirmFollow = () => {
+    setHasFollowed(true)
+    setShowFollowPrompt(false)
+  }
+
+  const openTwitter = () => {
+    window.open("https://x.com/agungfathul", "_blank")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Check if all required tasks are completed
-    const requiredTasks = tasks.filter((task) => task.is_required)
-    const uncompletedRequiredTasks = requiredTasks.filter((task) => !completedTasks.has(task.id))
-
-    if (uncompletedRequiredTasks.length > 0) {
-      setMessage("Please complete all required tasks before submitting your address")
+    if (!hasFollowed) {
+      handleFollowCheck()
       return
     }
 
@@ -180,14 +154,13 @@ export function ContestInterface({
   }
 
   const shareToTwitter = () => {
-    const text = `🎉 ${contest.contest_name} 🐎
+    const text = `🎉 Monadhorse Raffle Giveaway 🐎
 Hosted by @agungfathul
 
 Join the fun, win cool stuff, and stay updated on giveaways, art, and exclusive info!
 Follow for more 👉 @agungfathul
 
-@monad_xyz
-#MonadGiveaway`
+#MonadGiveaway #Crypto #Raffle`
 
     const url = window.location.href
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`
@@ -221,15 +194,9 @@ Follow for more 👉 @agungfathul
   const isContestNaturallyEnded = checkContestEnd()
   const submissionsBlocked = contest.submissions_stopped || isContestNaturallyEnded || contest.status !== "active"
 
-  // Check if all required tasks are completed
-  const requiredTasks = tasks.filter((task) => task.is_required)
-  const allRequiredTasksCompleted = requiredTasks.every((task) => completedTasks.has(task.id))
-  const inputLocked = !allRequiredTasksCompleted
-
   // Debug logging for contest state with timezone info
   console.log("Contest state (with timezone):", {
     id: contest.id,
-    name: contest.contest_name,
     type: contest.contest_type,
     status: contest.status,
     manually_stopped: contest.manually_stopped,
@@ -243,31 +210,49 @@ Follow for more 👉 @agungfathul
     isContestNaturallyEnded,
     submissionsBlocked,
     timeLeft,
-    allRequiredTasksCompleted,
-    inputLocked,
   })
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-4 md:py-8">
+        {/* Follow Prompt Modal */}
+        {showFollowPrompt && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <Card className="bg-white shadow-2xl border-0 max-w-md w-full mx-4">
+              <CardContent className="p-6 md:p-8 text-center">
+                <Twitter className="h-12 w-12 md:h-16 md:w-16 text-blue-500 mx-auto mb-4" />
+                <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-4">Follow Required!</h2>
+                <p className="text-slate-600 mb-6 text-sm md:text-base">
+                  You need to follow @agungfathul on X (Twitter) before submitting your wallet address.
+                </p>
+                <div className="space-y-3">
+                  <Button
+                    onClick={openTwitter}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Follow @agungfathul
+                  </Button>
+                  <Button onClick={confirmFollow} variant="outline" className="w-full">
+                    I've followed, continue
+                  </Button>
+                  <Button onClick={() => setShowFollowPrompt(false)} variant="ghost" className="w-full text-slate-500">
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Header */}
         <div className="text-center mb-6 md:mb-8">
           <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4">
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-800">{contest.contest_name}</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Warhorse Monad</h1>
           </div>
           <p className="text-base md:text-lg text-slate-600 max-w-2xl mx-auto mb-3 md:mb-4 px-4">
-            Join our exclusive raffle giveaway! Complete the required tasks and submit your EVM address for a chance to
-            win Monad tokens.
+            Join our exclusive raffle giveaway! Submit your EVM address for a chance to win Monad tokens.
           </p>
-
-          {/* Social Share Button */}
-          <Button
-            onClick={shareToTwitter}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2 mx-auto shadow-lg text-sm md:text-base"
-          >
-            <Share className="h-4 w-4" />
-            Share on X
-          </Button>
         </div>
 
         {/* Compact Prize & Schedule Info */}
@@ -413,71 +398,36 @@ Follow for more 👉 @agungfathul
             <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-t-lg p-4 md:p-6">
               <CardTitle className="text-lg md:text-xl">🎯 Submit Your EVM Address</CardTitle>
               <CardDescription className="text-indigo-100 text-sm md:text-base">
-                Complete all required tasks first, then enter your EVM address to participate in the raffle
+                Follow @agungfathul first, then enter your EVM address to participate in the raffle
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 md:p-6">
               {!submissionsBlocked ? (
                 <div className="space-y-4 md:space-y-6">
-                  {/* Required Tasks */}
-                  {tasks.length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-semibold text-slate-800 mb-3">Required Tasks</h3>
-                      {tasks.map((task) => (
-                        <div
-                          key={task.id}
-                          className={`border rounded-lg p-4 ${
-                            completedTasks.has(task.id)
-                              ? "bg-green-50 border-green-200"
-                              : task.is_required
-                                ? "bg-blue-50 border-blue-200"
-                                : "bg-slate-50 border-slate-200"
-                          }`}
+                  {/* Follow Requirement */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Twitter className="h-5 w-5 md:h-6 md:w-6 text-blue-500" />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-blue-800 text-sm md:text-base">Follow Required</h3>
+                        <p className="text-blue-600 text-xs md:text-sm">
+                          You must follow @agungfathul on X (Twitter) to participate
+                        </p>
+                      </div>
+                      {!hasFollowed && (
+                        <Button
+                          onClick={openTwitter}
+                          size="sm"
+                          className="bg-blue-500 hover:bg-blue-600 text-white text-xs md:text-sm"
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 flex-1">
-                              {task.task_type === "follow_twitter" && <Twitter className="h-5 w-5 text-blue-500" />}
-                              <div className="flex-1">
-                                <p className="font-medium text-slate-800">{task.task_description}</p>
-                                {task.is_required && (
-                                  <p className="text-xs text-slate-600 mt-1">Required to participate</p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {completedTasks.has(task.id) ? (
-                                <Badge className="bg-green-100 text-green-700 border-green-300">
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Completed
-                                </Badge>
-                              ) : (
-                                <>
-                                  {task.task_url && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => openTaskUrl(task.task_url!)}
-                                      className="bg-blue-500 hover:bg-blue-600 text-white"
-                                    >
-                                      <ExternalLink className="h-3 w-3 mr-1" />
-                                      {task.task_type === "follow_twitter" ? "Follow" : "Open"}
-                                    </Button>
-                                  )}
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleTaskComplete(task.id)}
-                                    disabled={!address}
-                                  >
-                                    Mark Done
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                          Follow
+                        </Button>
+                      )}
+                      {hasFollowed && (
+                        <Badge className="bg-green-100 text-green-700 border-green-300 text-xs">✓ Followed</Badge>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
                     <div>
@@ -486,36 +436,28 @@ Follow for more 👉 @agungfathul
                         className="block text-base md:text-lg font-medium text-slate-700 mb-2 md:mb-3"
                       >
                         Your EVM Address
-                        {inputLocked && (
-                          <span className="text-red-600 text-sm ml-2">
-                            <Lock className="h-4 w-4 inline mr-1" />
-                            Complete all required tasks first
-                          </span>
-                        )}
                       </label>
                       <Input
                         id="address"
                         type="text"
-                        placeholder={inputLocked ? "Complete required tasks to unlock" : "0x..."}
+                        placeholder="0x..."
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        className={`h-12 md:h-14 text-base md:text-lg font-mono border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 ${
-                          inputLocked ? "bg-gray-100 cursor-not-allowed" : "bg-white"
-                        }`}
-                        disabled={isSubmitting || inputLocked}
+                        className="h-12 md:h-14 text-base md:text-lg font-mono bg-white border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                        disabled={isSubmitting}
                       />
                     </div>
                     <Button
                       type="submit"
                       size="lg"
                       className="w-full h-12 md:h-14 text-base md:text-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg font-semibold"
-                      disabled={isSubmitting || !address || inputLocked}
+                      disabled={isSubmitting || !address}
                     >
                       {isSubmitting
                         ? "Submitting..."
-                        : inputLocked
-                          ? "🔒 Complete Required Tasks First"
-                          : "🚀 Submit & Join Raffle"}
+                        : hasFollowed
+                          ? "🚀 Submit & Join Raffle"
+                          : "Follow First to Submit"}
                     </Button>
                     {message && (
                       <div
@@ -584,14 +526,11 @@ Follow for more 👉 @agungfathul
                       className="flex justify-between items-center p-2 md:p-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
                     >
                       <span className="font-mono text-slate-800 text-xs md:text-sm break-all">
-                        {typeof window !== "undefined" && window.innerWidth < 768
+                        {window.innerWidth < 768
                           ? `${submission.evm_address.slice(0, 8)}...${submission.evm_address.slice(-6)}`
                           : submission.evm_address}
                       </span>
                       <div className="flex items-center gap-2 md:gap-3">
-                        <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">
-                          {formatMonadAmount(contest.monad_amount)} MONAD
-                        </Badge>
                         <span className="text-xs text-slate-500 hidden md:inline">
                           {new Date(submission.submitted_at).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta" })}
                         </span>
