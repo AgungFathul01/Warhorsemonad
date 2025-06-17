@@ -252,7 +252,6 @@ Follow for more 👉 @agungfathul
         {/* Header */}
         <div className="text-center mb-6 md:mb-8">
           <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4">
-            <Gift className="h-8 w-8 md:h-10 md:w-10 text-indigo-600" />
             <h1 className="text-3xl md:text-4xl font-bold text-slate-800">{contest.contest_name}</h1>
           </div>
           <p className="text-base md:text-lg text-slate-600 max-w-2xl mx-auto mb-3 md:mb-4 px-4">
