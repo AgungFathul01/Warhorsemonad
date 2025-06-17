@@ -165,14 +165,8 @@ export function ContestInterface({
 
   const handleTaskComplete = async (taskId: number) => {
     try {
-      const result = await markUserTaskCompleted(
-        contest.id,
-        address || "pending",
-        taskId
-      );
-      if (result.success) {
-        setCompletedTasks((prev) => new Set([...prev, taskId]));
-      }
+      setCompletedTasks((prev: Set<number>) => new Set([...prev, taskId]));
+      await markUserTaskCompleted(contest.id, "pending", taskId);
     } catch (error) {
       console.error("Error marking task completed:", error);
     }
