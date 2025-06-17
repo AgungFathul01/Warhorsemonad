@@ -62,15 +62,7 @@ export function ContestInterface({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [timeLeft, setTimeLeft] = useState("");
-  const [completedTasks, setCompletedTasks] = useState<Set<number>>(new Set());
   const [hasClickedFollow, setHasClickedFollow] = useState(false);
-
-  const handleTaskComplete = (taskId: number) => {
-    setCompletedTasks((prev: Set<number>) => new Set([...prev, taskId]));
-    if (tasks.find((t) => t.id === taskId)?.task_type === "follow_twitter") {
-      setHasClickedFollow(true);
-    }
-  };
 
   const openTaskUrl = (url: string) => {
     window.open(url, "_blank");
@@ -78,7 +70,6 @@ export function ContestInterface({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setIsSubmitting(true);
     setMessage("");
 
@@ -140,13 +131,6 @@ Follow for more 👉 @agungfathul
     contest.submissions_stopped ||
     isContestNaturallyEnded ||
     contest.status !== "active";
-
-  // Check if all required tasks are completed
-  const requiredTasks = tasks.filter((task) => task.is_required);
-  const allRequiredTasksCompleted = requiredTasks.every((task) =>
-    completedTasks.has(task.id)
-  );
-  const inputLocked = !hasClickedFollow;
 
   // Debug logging for contest state with timezone info
   console.log("Contest state (with timezone):", {
@@ -396,9 +380,7 @@ Follow for more 👉 @agungfathul
                         <div
                           key={task.id}
                           className={`border rounded-lg p-4 ${
-                            completedTasks.has(task.id)
-                              ? "bg-green-50 border-green-200"
-                              : task.is_required
+                            task.is_required
                               ? "bg-blue-50 border-blue-200"
                               : "bg-slate-50 border-slate-200"
                           }`}
@@ -420,35 +402,24 @@ Follow for more 👉 @agungfathul
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              {completedTasks.has(task.id) ? (
-                                <Badge className="bg-green-100 text-green-700 border-green-300">
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Completed
-                                </Badge>
-                              ) : (
-                                <>
-                                  {task.task_url && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        if (
-                                          task.task_type === "follow_twitter"
-                                        ) {
-                                          openTaskUrl(task.task_url!);
-                                          setHasClickedFollow(true);
-                                        } else {
-                                          openTaskUrl(task.task_url!);
-                                        }
-                                      }}
-                                      className="bg-blue-500 hover:bg-blue-600 text-white"
-                                    >
-                                      <ExternalLink className="h-3 w-3 mr-1" />
-                                      {task.task_type === "follow_twitter"
-                                        ? "Follow"
-                                        : "Open"}
-                                    </Button>
-                                  )}
-                                </>
+                              {task.task_url && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    if (task.task_type === "follow_twitter") {
+                                      openTaskUrl(task.task_url!);
+                                      setHasClickedFollow(true);
+                                    } else {
+                                      openTaskUrl(task.task_url!);
+                                    }
+                                  }}
+                                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                                >
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  {task.task_type === "follow_twitter"
+                                    ? "Follow"
+                                    : "Open"}
+                                </Button>
                               )}
                             </div>
                           </div>
@@ -472,27 +443,29 @@ Follow for more 👉 @agungfathul
                         id="address"
                         type="text"
                         placeholder={
-                          inputLocked ? "Click Follow first to unlock" : "0x..."
+                          hasClickedFollow
+                            ? "0x..."
+                            : "Click Follow first to unlock"
                         }
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
                         className={`h-12 md:h-14 text-base md:text-lg font-mono border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 ${
-                          inputLocked
+                          !hasClickedFollow
                             ? "bg-gray-100 cursor-not-allowed"
                             : "bg-white"
                         }`}
-                        disabled={isSubmitting || inputLocked}
+                        disabled={isSubmitting || !hasClickedFollow}
                       />
                     </div>
                     <Button
                       type="submit"
                       size="lg"
                       className="w-full h-12 md:h-14 text-base md:text-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg font-semibold"
-                      disabled={isSubmitting || !address || inputLocked}
+                      disabled={isSubmitting || !address || !hasClickedFollow}
                     >
                       {isSubmitting
                         ? "Submitting..."
-                        : inputLocked
+                        : !hasClickedFollow
                         ? "🔒 Click Follow First"
                         : "🚀 Submit & Join Raffle"}
                     </Button>
