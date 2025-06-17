@@ -166,7 +166,12 @@ export function ContestInterface({
   const handleTaskComplete = async (taskId: number) => {
     try {
       setCompletedTasks((prev: Set<number>) => new Set([...prev, taskId]));
-      await markUserTaskCompleted(contest.id, "pending", taskId);
+      // Use a temporary EVM address format that will be replaced when user submits their real address
+      await markUserTaskCompleted(
+        contest.id,
+        "0x0000000000000000000000000000000000000000",
+        taskId
+      );
     } catch (error) {
       console.error("Error marking task completed:", error);
     }
