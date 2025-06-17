@@ -166,12 +166,6 @@ export function ContestInterface({
   const handleTaskComplete = async (taskId: number) => {
     try {
       setCompletedTasks((prev: Set<number>) => new Set([...prev, taskId]));
-      // Use a temporary EVM address format that will be replaced when user submits their real address
-      await markUserTaskCompleted(
-        contest.id,
-        "0x0000000000000000000000000000000000000000",
-        taskId
-      );
     } catch (error) {
       console.error("Error marking task completed:", error);
     }
@@ -552,9 +546,8 @@ Follow for more 👉 @agungfathul
                                         if (
                                           task.task_type === "follow_twitter"
                                         ) {
-                                          // Open Twitter URL
+                                          // Open Twitter URL and mark task as done locally
                                           openTaskUrl(task.task_url!);
-                                          // Automatically mark task as done
                                           handleTaskComplete(task.id);
                                         } else {
                                           // For other tasks, just open the URL
