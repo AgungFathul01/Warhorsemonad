@@ -553,14 +553,12 @@ Follow for more 👉 @agungfathul
                                         if (
                                           task.task_type === "follow_twitter"
                                         ) {
-                                          // Focus the address input when it's a follow task
-                                          const addressInput =
-                                            document.getElementById("address");
-                                          if (addressInput) {
-                                            addressInput.focus();
-                                          }
+                                          // Open Twitter URL
+                                          openTaskUrl(task.task_url!);
+                                          // Automatically mark task as done
+                                          handleTaskComplete(task.id);
                                         } else {
-                                          // For other tasks, open the URL
+                                          // For other tasks, just open the URL
                                           openTaskUrl(task.task_url!);
                                         }
                                       }}
@@ -572,13 +570,6 @@ Follow for more 👉 @agungfathul
                                         : "Open"}
                                     </Button>
                                   )}
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleTaskComplete(task.id)}
-                                  >
-                                    Mark Done
-                                  </Button>
                                 </>
                               )}
                             </div>
