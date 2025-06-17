@@ -23,7 +23,7 @@ import {
   AlertCircle,
   StopCircle,
 } from "lucide-react"
-import { submitEVMAddress, processExpiredContests } from "@/app/actions"
+import { submitEVMAddress } from "@/app/actions"
 import type { Contest, Submission } from "@/lib/database"
 
 interface ContestInterfaceProps {
@@ -77,22 +77,6 @@ export function ContestInterface({ contest, submissions, isExpired }: ContestInt
 
     return ended
   }
-
-  // Process expired contests on client side when component mounts
-  useEffect(() => {
-    const checkExpiredContests = async () => {
-      try {
-        await processExpiredContests()
-      } catch (error) {
-        console.error("Error processing expired contests:", error)
-      }
-    }
-
-    // Only check if contest is active and might be expired
-    if (contest.status === "active" && checkContestEnd()) {
-      checkExpiredContests()
-    }
-  }, [contest.id, contest.status])
 
   useEffect(() => {
     if (contest.contest_type === "duration" && contest.end_time && !contest.manually_stopped) {
@@ -248,11 +232,21 @@ Follow for more 👉 @agungfathul
         {/* Header */}
         <div className="text-center mb-6 md:mb-8">
           <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4">
+            <Gift className="h-8 w-8 md:h-10 md:w-10 text-indigo-600" />
             <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Warhorse Monad</h1>
           </div>
           <p className="text-base md:text-lg text-slate-600 max-w-2xl mx-auto mb-3 md:mb-4 px-4">
             Join our exclusive raffle giveaway! Submit your EVM address for a chance to win Monad tokens.
           </p>
+
+          {/* Social Share Button */}
+          <Button
+            onClick={shareToTwitter}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2 mx-auto shadow-lg text-sm md:text-base"
+          >
+            <Share className="h-4 w-4" />
+            Share on X
+          </Button>
         </div>
 
         {/* Compact Prize & Schedule Info */}
@@ -531,6 +525,9 @@ Follow for more 👉 @agungfathul
                           : submission.evm_address}
                       </span>
                       <div className="flex items-center gap-2 md:gap-3">
+                        <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">
+                          {formatMonadAmount(contest.monad_amount)} MONAD
+                        </Badge>
                         <span className="text-xs text-slate-500 hidden md:inline">
                           {new Date(submission.submitted_at).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta" })}
                         </span>
