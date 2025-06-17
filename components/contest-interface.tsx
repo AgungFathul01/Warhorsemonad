@@ -551,7 +551,8 @@ Follow for more 👉 @agungfathul
                                     <Button
                                       size="sm"
                                       onClick={() =>
-                                        openTaskUrl(task.task_url!)
+                                        openTaskUrl(task.task_url!);
+                                        handleTaskComplete(task.id);
                                       }
                                       className="bg-blue-500 hover:bg-blue-600 text-white"
                                     >
