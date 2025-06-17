@@ -442,17 +442,11 @@ Follow for more 👉 @agungfathul
                       <Input
                         id="address"
                         type="text"
-                        placeholder={
-                          hasClickedFollow
-                            ? "0x..."
-                            : "Click Follow first to unlock"
-                        }
+                        placeholder={hasClickedFollow ? "0x..." : "Click Follow first to unlock"}
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
                         className={`h-12 md:h-14 text-base md:text-lg font-mono border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 ${
-                          !hasClickedFollow
-                            ? "bg-gray-100 cursor-not-allowed"
-                            : "bg-white"
+                          !hasClickedFollow ? "bg-gray-100 cursor-not-allowed" : "bg-white"
                         }`}
                         disabled={isSubmitting || !hasClickedFollow}
                       />
