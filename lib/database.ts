@@ -206,7 +206,6 @@ export async function submitAddress(contestId: number, evmAddress: string) {
 }
 
 export async function createContest(
-  contestName: string,
   monadAmount: number,
   contestType: "duration" | "participants",
   durationMinutes?: number,
@@ -215,7 +214,6 @@ export async function createContest(
 ) {
   try {
     console.log("Database createContest called with:", {
-      contestName,
       monadAmount,
       contestType,
       durationMinutes,
@@ -277,7 +275,6 @@ export async function createContest(
         submissions_stopped
       )
       VALUES (
-        ${contestName},
         ${monadAmount}, 
         ${contestType}, 
         ${durationMinutes || null}, 
