@@ -178,19 +178,6 @@ export function ContestInterface({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check if all required tasks are completed
-    const requiredTasks = tasks.filter((task) => task.is_required);
-    const uncompletedRequiredTasks = requiredTasks.filter(
-      (task) => !completedTasks.has(task.id)
-    );
-
-    if (uncompletedRequiredTasks.length > 0) {
-      setMessage(
-        "Please complete all required tasks before submitting your address"
-      );
-      return;
-    }
-
     setIsSubmitting(true);
     setMessage("");
 
@@ -258,7 +245,7 @@ Follow for more 👉 @agungfathul
   const allRequiredTasksCompleted = requiredTasks.every((task) =>
     completedTasks.has(task.id)
   );
-  const inputLocked = !allRequiredTasksCompleted;
+  const inputLocked = false;
 
   // Debug logging for contest state with timezone info
   console.log("Contest state (with timezone):", {
@@ -581,41 +568,25 @@ Follow for more 👉 @agungfathul
                         className="block text-base md:text-lg font-medium text-slate-700 mb-2 md:mb-3"
                       >
                         Your EVM Address
-                        {inputLocked && (
-                          <span className="text-red-600 text-sm ml-2">
-                            <Lock className="h-4 w-4 inline mr-1" />
-                            Complete all required tasks first
-                          </span>
-                        )}
                       </label>
                       <Input
                         id="address"
                         type="text"
-                        placeholder={
-                          inputLocked
-                            ? "Complete required tasks to unlock"
-                            : "0x..."
-                        }
+                        placeholder="0x..."
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        className={`h-12 md:h-14 text-base md:text-lg font-mono border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 ${
-                          inputLocked
-                            ? "bg-gray-100 cursor-not-allowed"
-                            : "bg-white"
-                        }`}
-                        disabled={isSubmitting || inputLocked}
+                        className="h-12 md:h-14 text-base md:text-lg font-mono border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                        disabled={isSubmitting}
                       />
                     </div>
                     <Button
                       type="submit"
                       size="lg"
                       className="w-full h-12 md:h-14 text-base md:text-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg font-semibold"
-                      disabled={isSubmitting || !address || inputLocked}
+                      disabled={isSubmitting || !address}
                     >
                       {isSubmitting
                         ? "Submitting..."
-                        : inputLocked
-                        ? "🔒 Complete Required Tasks First"
                         : "🚀 Submit & Join Raffle"}
                     </Button>
                     {message && (
