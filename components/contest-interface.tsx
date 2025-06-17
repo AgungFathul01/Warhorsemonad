@@ -1,12 +1,18 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Coins,
   Clock,
@@ -22,47 +28,81 @@ import {
   Calendar,
   AlertCircle,
   StopCircle,
-} from "lucide-react"
-import { submitEVMAddress, processExpiredContests } from "@/app/actions"
-import type { Contest, Submission } from "@/lib/database"
+  CheckCircle,
+  Lock,
+} from "lucide-react";
+import {
+  submitEVMAddress,
+  processExpiredContests,
+  markUserTaskCompleted,
+} from "@/app/actions";
+import type {
+  Contest,
+  Submission,
+  ContestTask,
+  UserTaskCompletion,
+} from "@/lib/database";
 
 interface ContestInterfaceProps {
-  contest: Contest
-  submissions: Submission[]
-  isExpired: boolean
+  contest: Contest;
+  submissions: Submission[];
+  tasks: ContestTask[];
+  userTaskCompletions: UserTaskCompletion[];
+  isExpired: boolean;
 }
 
-export function ContestInterface({ contest, submissions, isExpired }: ContestInterfaceProps) {
-  const [address, setAddress] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [message, setMessage] = useState("")
-  const [timeLeft, setTimeLeft] = useState("")
-  const [hasFollowed, setHasFollowed] = useState(false)
-  const [showFollowPrompt, setShowFollowPrompt] = useState(false)
+export function ContestInterface({
+  contest,
+  submissions,
+  tasks,
+  userTaskCompletions,
+  isExpired,
+}: ContestInterfaceProps) {
+  const [address, setAddress] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [timeLeft, setTimeLeft] = useState("");
+  const [completedTasks, setCompletedTasks] = useState<Set<number>>(new Set());
+
+  // Initialize completed tasks from props
+  useEffect(() => {
+    const completedTaskIds = new Set(
+      userTaskCompletions.map((utc) => utc.task_id)
+    );
+    setCompletedTasks(completedTaskIds);
+  }, [userTaskCompletions]);
 
   // Check if contest has ended naturally (duration or participant limit)
   const checkContestEnd = () => {
-    let ended = false
+    let ended = false;
 
     // Duration-based contest end check - only check if not manually stopped
-    if (contest.contest_type === "duration" && contest.end_time && !contest.manually_stopped) {
+    if (
+      contest.contest_type === "duration" &&
+      contest.end_time &&
+      !contest.manually_stopped
+    ) {
       // Use current time consistently
-      const now = new Date().getTime()
-      const endTime = new Date(contest.end_time).getTime()
-      ended = now >= endTime
+      const now = new Date().getTime();
+      const endTime = new Date(contest.end_time).getTime();
+      ended = now >= endTime;
 
       // Debug logging with timezone info
       if (contest.contest_type === "duration") {
         console.log("Duration contest check:", {
           now: new Date(now).toISOString(),
-          nowLocal: new Date(now).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }),
+          nowLocal: new Date(now).toLocaleString("id-ID", {
+            timeZone: "Asia/Jakarta",
+          }),
           endTime: new Date(endTime).toISOString(),
-          endTimeLocal: new Date(endTime).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }),
+          endTimeLocal: new Date(endTime).toLocaleString("id-ID", {
+            timeZone: "Asia/Jakarta",
+          }),
           ended,
           manually_stopped: contest.manually_stopped,
           status: contest.status,
           timeDifferenceMinutes: (endTime - now) / (1000 * 60),
-        })
+        });
       }
     }
 
@@ -72,110 +112,133 @@ export function ContestInterface({ contest, submissions, isExpired }: ContestInt
       contest.max_participants &&
       submissions.length >= contest.max_participants
     ) {
-      ended = true
+      ended = true;
     }
 
-    return ended
-  }
+    return ended;
+  };
 
   // Process expired contests on client side when component mounts
   useEffect(() => {
     const checkExpiredContests = async () => {
       try {
-        await processExpiredContests()
+        await processExpiredContests();
       } catch (error) {
-        console.error("Error processing expired contests:", error)
+        console.error("Error processing expired contests:", error);
       }
-    }
+    };
 
     // Only check if contest is active and might be expired
     if (contest.status === "active" && checkContestEnd()) {
-      checkExpiredContests()
+      checkExpiredContests();
     }
-  }, [contest.id, contest.status])
+  }, [contest.id, contest.status]);
 
   useEffect(() => {
-    if (contest.contest_type === "duration" && contest.end_time && !contest.manually_stopped) {
+    if (
+      contest.contest_type === "duration" &&
+      contest.end_time &&
+      !contest.manually_stopped
+    ) {
       const updateTimer = () => {
-        const now = new Date().getTime()
-        const endTime = new Date(contest.end_time).getTime()
-        const difference = endTime - now
+        const now = new Date().getTime();
+        const endTime = new Date(contest.end_time).getTime();
+        const difference = endTime - now;
 
         if (difference > 0) {
-          const hours = Math.floor(difference / (1000 * 60 * 60))
-          const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60))
-          const seconds = Math.floor((difference % (1000 * 60)) / 1000)
-          setTimeLeft(`${hours}h ${minutes}m ${seconds}s`)
+          const hours = Math.floor(difference / (1000 * 60 * 60));
+          const minutes = Math.floor(
+            (difference % (1000 * 60 * 60)) / (1000 * 60)
+          );
+          const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+          setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
         } else {
-          setTimeLeft("Contest Ended")
+          setTimeLeft("Contest Ended");
         }
-      }
+      };
 
-      updateTimer()
-      const timer = setInterval(updateTimer, 1000)
-      return () => clearInterval(timer)
+      updateTimer();
+      const timer = setInterval(updateTimer, 1000);
+      return () => clearInterval(timer);
     }
-  }, [contest.end_time, contest.contest_type, contest.manually_stopped])
+  }, [contest.end_time, contest.contest_type, contest.manually_stopped]);
 
-  const handleFollowCheck = () => {
-    setShowFollowPrompt(true)
-  }
+  const handleTaskComplete = async (taskId: number) => {
+    if (!address) {
+      alert("Please enter your EVM address first to track task completion");
+      return;
+    }
 
-  const confirmFollow = () => {
-    setHasFollowed(true)
-    setShowFollowPrompt(false)
-  }
+    try {
+      const result = await markUserTaskCompleted(contest.id, address, taskId);
+      if (result.success) {
+        setCompletedTasks((prev) => new Set([...prev, taskId]));
+      }
+    } catch (error) {
+      console.error("Error marking task completed:", error);
+    }
+  };
 
-  const openTwitter = () => {
-    window.open("https://x.com/agungfathul", "_blank")
-  }
+  const openTaskUrl = (url: string) => {
+    window.open(url, "_blank");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (!hasFollowed) {
-      handleFollowCheck()
-      return
+    // Check if all required tasks are completed
+    const requiredTasks = tasks.filter((task) => task.is_required);
+    const uncompletedRequiredTasks = requiredTasks.filter(
+      (task) => !completedTasks.has(task.id)
+    );
+
+    if (uncompletedRequiredTasks.length > 0) {
+      setMessage(
+        "Please complete all required tasks before submitting your address"
+      );
+      return;
     }
 
-    setIsSubmitting(true)
-    setMessage("")
+    setIsSubmitting(true);
+    setMessage("");
 
-    const result = await submitEVMAddress(contest.id, address)
+    const result = await submitEVMAddress(contest.id, address);
 
     if (result.success) {
-      setMessage("Address submitted successfully! 🎉")
-      setAddress("")
+      setMessage("Address submitted successfully! 🎉");
+      setAddress("");
     } else {
-      setMessage(result.error || "Failed to submit address")
+      setMessage(result.error || "Failed to submit address");
     }
 
-    setIsSubmitting(false)
-  }
+    setIsSubmitting(false);
+  };
 
   const shareToTwitter = () => {
-    const text = `🎉 Monadhorse Raffle Giveaway 🐎
+    const text = `🎉 ${contest.contest_name} 🐎
 Hosted by @agungfathul
 
 Join the fun, win cool stuff, and stay updated on giveaways, art, and exclusive info!
 Follow for more 👉 @agungfathul
 
-#MonadGiveaway #Crypto #Raffle`
+#MonadGiveaway #Crypto #Raffle`;
 
-    const url = window.location.href
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`
-    window.open(twitterUrl, "_blank")
-  }
+    const url = window.location.href;
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+      text
+    )}&url=${encodeURIComponent(url)}`;
+    window.open(twitterUrl, "_blank");
+  };
 
   // Format Monad amount to show exactly as admin typed
   const formatMonadAmount = (amount: string) => {
-    const num = Number.parseFloat(amount)
-    return num % 1 === 0 ? num.toString() : amount
-  }
+    const num = Number.parseFloat(amount);
+    return num % 1 === 0 ? num.toString() : amount;
+  };
 
   // Format date and time with timezone awareness
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = new Date(dateString);
     return {
       date: date.toLocaleDateString("id-ID", {
         month: "short",
@@ -187,12 +250,23 @@ Follow for more 👉 @agungfathul
         minute: "2-digit",
         timeZone: "Asia/Jakarta",
       }),
-    }
-  }
+    };
+  };
 
-  const totalPrizePool = Number.parseFloat(contest.monad_amount) * (contest.winner_count || 1)
-  const isContestNaturallyEnded = checkContestEnd()
-  const submissionsBlocked = contest.submissions_stopped || isContestNaturallyEnded || contest.status !== "active"
+  const totalPrizePool =
+    Number.parseFloat(contest.monad_amount) * (contest.winner_count || 1);
+  const isContestNaturallyEnded = checkContestEnd();
+  const submissionsBlocked =
+    contest.submissions_stopped ||
+    isContestNaturallyEnded ||
+    contest.status !== "active";
+
+  // Check if all required tasks are completed
+  const requiredTasks = tasks.filter((task) => task.is_required);
+  const allRequiredTasksCompleted = requiredTasks.every((task) =>
+    completedTasks.has(task.id)
+  );
+  const inputLocked = !allRequiredTasksCompleted;
 
   // Debug logging for contest state with timezone info
   console.log("Contest state (with timezone):", {
@@ -203,56 +277,44 @@ Follow for more 👉 @agungfathul
     submissions_stopped: contest.submissions_stopped,
     end_time: contest.end_time,
     end_time_local: contest.end_time
-      ? new Date(contest.end_time).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+      ? new Date(contest.end_time).toLocaleString("id-ID", {
+          timeZone: "Asia/Jakarta",
+        })
       : null,
     current_time_utc: new Date().toISOString(),
-    current_time_local: new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }),
+    current_time_local: new Date().toLocaleString("id-ID", {
+      timeZone: "Asia/Jakarta",
+    }),
     isContestNaturallyEnded,
     submissionsBlocked,
     timeLeft,
-  })
+    allRequiredTasksCompleted,
+    inputLocked,
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-4 md:py-8">
-        {/* Follow Prompt Modal */}
-        {showFollowPrompt && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <Card className="bg-white shadow-2xl border-0 max-w-md w-full mx-4">
-              <CardContent className="p-6 md:p-8 text-center">
-                <Twitter className="h-12 w-12 md:h-16 md:w-16 text-blue-500 mx-auto mb-4" />
-                <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-4">Follow Required!</h2>
-                <p className="text-slate-600 mb-6 text-sm md:text-base">
-                  You need to follow @agungfathul on X (Twitter) before submitting your wallet address.
-                </p>
-                <div className="space-y-3">
-                  <Button
-                    onClick={openTwitter}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Follow @agungfathul
-                  </Button>
-                  <Button onClick={confirmFollow} variant="outline" className="w-full">
-                    I've followed, continue
-                  </Button>
-                  <Button onClick={() => setShowFollowPrompt(false)} variant="ghost" className="w-full text-slate-500">
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
         {/* Header */}
         <div className="text-center mb-6 md:mb-8">
           <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4">
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Warhorse Monad</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-800">
+              Warhorse Monad
+            </h1>
           </div>
           <p className="text-base md:text-lg text-slate-600 max-w-2xl mx-auto mb-3 md:mb-4 px-4">
-            Join our exclusive raffle giveaway! Submit your EVM address for a chance to win Monad tokens.
+            Join our exclusive raffle giveaway! Complete the required tasks and
+            submit your EVM address for a chance to win Monad tokens.
           </p>
+
+          {/* Social Share Button */}
+          <Button
+            onClick={shareToTwitter}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2 mx-auto shadow-lg text-sm md:text-base"
+          >
+            <Share className="h-4 w-4" />
+            Share on X
+          </Button>
         </div>
 
         {/* Compact Prize & Schedule Info */}
@@ -262,26 +324,36 @@ Follow for more 👉 @agungfathul
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 text-center text-white text-xs md:text-sm">
                 <div className="flex flex-col items-center">
                   <DollarSign className="h-5 w-5 md:h-6 md:w-6 mb-1" />
-                  <p className="text-base md:text-lg font-bold">{formatMonadAmount(contest.monad_amount)} MONAD</p>
+                  <p className="text-base md:text-lg font-bold">
+                    {formatMonadAmount(contest.monad_amount)} MONAD
+                  </p>
                   <p className="text-xs opacity-90">per winner</p>
                 </div>
                 <div className="flex flex-col items-center">
                   <Crown className="h-5 w-5 md:h-6 md:w-6 mb-1" />
-                  <p className="text-base md:text-lg font-bold">{contest.winner_count || 1}</p>
+                  <p className="text-base md:text-lg font-bold">
+                    {contest.winner_count || 1}
+                  </p>
                   <p className="text-xs opacity-90">winners</p>
                 </div>
                 <div className="flex flex-col items-center">
                   <Target className="h-5 w-5 md:h-6 md:w-6 mb-1" />
-                  <p className="text-base md:text-lg font-bold">{totalPrizePool.toString()} MONAD</p>
+                  <p className="text-base md:text-lg font-bold">
+                    {totalPrizePool.toString()} MONAD
+                  </p>
                   <p className="text-xs opacity-90">total pool</p>
                 </div>
                 <div className="flex flex-col items-center">
                   {contest.contest_type === "duration" ? (
                     <>
                       <Clock className="h-5 w-5 md:h-6 md:w-6 mb-1" />
-                      <p className="text-base md:text-lg font-bold">{isContestNaturallyEnded ? "Ended" : timeLeft}</p>
+                      <p className="text-base md:text-lg font-bold">
+                        {isContestNaturallyEnded ? "Ended" : timeLeft}
+                      </p>
                       <p className="text-xs opacity-90">
-                        {contest.end_time ? `ends ${formatDateTime(contest.end_time).date}` : "duration"}
+                        {contest.end_time
+                          ? `ends ${formatDateTime(contest.end_time).date}`
+                          : "duration"}
                       </p>
                     </>
                   ) : (
@@ -307,28 +379,43 @@ Follow for more 👉 @agungfathul
                 {contest.status === "completed" ? (
                   <>
                     <Trophy className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-3 md:mb-4" />
-                    <h3 className="text-lg md:text-2xl font-bold mb-2">Contest Completed!</h3>
-                    <p className="text-sm md:text-base mb-2">Winners have been selected and announced.</p>
-                    <p className="text-xs md:text-sm opacity-90">🎉 Check the history page to see if you won!</p>
+                    <h3 className="text-lg md:text-2xl font-bold mb-2">
+                      Contest Completed!
+                    </h3>
+                    <p className="text-sm md:text-base mb-2">
+                      Winners have been selected and announced.
+                    </p>
+                    <p className="text-xs md:text-sm opacity-90">
+                      🎉 Check the history page to see if you won!
+                    </p>
                   </>
                 ) : contest.submissions_stopped ? (
                   <>
                     <StopCircle className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-3 md:mb-4" />
-                    <h3 className="text-lg md:text-2xl font-bold mb-2">Submissions Stopped!</h3>
-                    <p className="text-sm md:text-base mb-2">The admin has stopped accepting new submissions.</p>
-                    <p className="text-xs md:text-sm opacity-90">🎰 Winners will be selected soon. Stay tuned!</p>
+                    <h3 className="text-lg md:text-2xl font-bold mb-2">
+                      Submissions Stopped!
+                    </h3>
+                    <p className="text-sm md:text-base mb-2">
+                      The admin has stopped accepting new submissions.
+                    </p>
+                    <p className="text-xs md:text-sm opacity-90">
+                      🎰 Winners will be selected soon. Stay tuned!
+                    </p>
                   </>
                 ) : (
                   <>
                     <AlertCircle className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-3 md:mb-4" />
-                    <h3 className="text-lg md:text-2xl font-bold mb-2">Contest Time/Limit Reached!</h3>
+                    <h3 className="text-lg md:text-2xl font-bold mb-2">
+                      Contest Time/Limit Reached!
+                    </h3>
                     <p className="text-sm md:text-base mb-2">
                       {contest.contest_type === "duration"
                         ? "The time limit has been reached."
                         : "The participant limit has been reached."}
                     </p>
                     <p className="text-xs md:text-sm opacity-90">
-                      🔒 No more submissions accepted. Winners will be announced soon.
+                      🔒 No more submissions accepted. Winners will be announced
+                      soon.
                     </p>
                   </>
                 )}
@@ -354,7 +441,9 @@ Follow for more 👉 @agungfathul
                   <p className="text-lg md:text-xl font-bold text-emerald-700">
                     {formatMonadAmount(contest.monad_amount)}
                   </p>
-                  <p className="text-emerald-600 text-xs md:text-sm">MONAD each</p>
+                  <p className="text-emerald-600 text-xs md:text-sm">
+                    MONAD each
+                  </p>
                 </div>
               </div>
 
@@ -364,7 +453,10 @@ Follow for more 👉 @agungfathul
                     <Users className="h-3 w-3 md:h-4 md:w-4" />
                     Joined
                   </span>
-                  <Badge variant="outline" className="text-xs border-indigo-300 text-indigo-600">
+                  <Badge
+                    variant="outline"
+                    className="text-xs border-indigo-300 text-indigo-600"
+                  >
                     {submissions.length}
                   </Badge>
                 </div>
@@ -374,7 +466,10 @@ Follow for more 👉 @agungfathul
                     <Crown className="h-3 w-3 md:h-4 md:w-4" />
                     Winners
                   </span>
-                  <Badge variant="outline" className="text-xs border-yellow-300 text-yellow-600">
+                  <Badge
+                    variant="outline"
+                    className="text-xs border-yellow-300 text-yellow-600"
+                  >
                     {contest.winner_count || 1}
                   </Badge>
                 </div>
@@ -385,8 +480,12 @@ Follow for more 👉 @agungfathul
                     Started
                   </span>
                   <div className="text-right">
-                    <p className="text-xs font-semibold text-blue-700">{formatDateTime(contest.start_time).date}</p>
-                    <p className="text-xs text-blue-600">{formatDateTime(contest.start_time).time}</p>
+                    <p className="text-xs font-semibold text-blue-700">
+                      {formatDateTime(contest.start_time).date}
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      {formatDateTime(contest.start_time).time}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -396,68 +495,147 @@ Follow for more 👉 @agungfathul
           {/* Submission Form - Larger Focus */}
           <Card className="lg:col-span-3 bg-white/70 backdrop-blur-sm border-slate-200 shadow-xl">
             <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-t-lg p-4 md:p-6">
-              <CardTitle className="text-lg md:text-xl">🎯 Submit Your EVM Address</CardTitle>
+              <CardTitle className="text-lg md:text-xl">
+                🎯 Submit Your EVM Address
+              </CardTitle>
               <CardDescription className="text-indigo-100 text-sm md:text-base">
-                Follow @agungfathul first, then enter your EVM address to participate in the raffle
+                Complete all required tasks first, then enter your EVM address
+                to participate in the raffle
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 md:p-6">
               {!submissionsBlocked ? (
                 <div className="space-y-4 md:space-y-6">
-                  {/* Follow Requirement */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <Twitter className="h-5 w-5 md:h-6 md:w-6 text-blue-500" />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-blue-800 text-sm md:text-base">Follow Required</h3>
-                        <p className="text-blue-600 text-xs md:text-sm">
-                          You must follow @agungfathul on X (Twitter) to participate
-                        </p>
-                      </div>
-                      {!hasFollowed && (
-                        <Button
-                          onClick={openTwitter}
-                          size="sm"
-                          className="bg-blue-500 hover:bg-blue-600 text-white text-xs md:text-sm"
+                  {/* Required Tasks */}
+                  {tasks.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                        Required Tasks
+                      </h3>
+                      {tasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className={`border rounded-lg p-4 ${
+                            completedTasks.has(task.id)
+                              ? "bg-green-50 border-green-200"
+                              : task.is_required
+                              ? "bg-blue-50 border-blue-200"
+                              : "bg-slate-50 border-slate-200"
+                          }`}
                         >
-                          Follow
-                        </Button>
-                      )}
-                      {hasFollowed && (
-                        <Badge className="bg-green-100 text-green-700 border-green-300 text-xs">✓ Followed</Badge>
-                      )}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              {task.task_type === "follow_twitter" && (
+                                <Twitter className="h-5 w-5 text-blue-500" />
+                              )}
+                              <div className="flex-1">
+                                <p className="font-medium text-slate-800">
+                                  {task.task_description}
+                                </p>
+                                {task.is_required && (
+                                  <p className="text-xs text-slate-600 mt-1">
+                                    Required to participate
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {completedTasks.has(task.id) ? (
+                                <Badge className="bg-green-100 text-green-700 border-green-300">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Completed
+                                </Badge>
+                              ) : (
+                                <>
+                                  {task.task_url && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        if (
+                                          task.task_type === "follow_twitter"
+                                        ) {
+                                          // Focus the address input when it's a follow task
+                                          const addressInput =
+                                            document.getElementById("address");
+                                          if (addressInput) {
+                                            addressInput.focus();
+                                          }
+                                        } else {
+                                          // For other tasks, open the URL
+                                          openTaskUrl(task.task_url!);
+                                        }
+                                      }}
+                                      className="bg-blue-500 hover:bg-blue-600 text-white"
+                                    >
+                                      <ExternalLink className="h-3 w-3 mr-1" />
+                                      {task.task_type === "follow_twitter"
+                                        ? "Follow"
+                                        : "Open"}
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleTaskComplete(task.id)}
+                                    disabled={!address}
+                                  >
+                                    Mark Done
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
 
-                  <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+                  <form
+                    onSubmit={handleSubmit}
+                    className="space-y-4 md:space-y-6"
+                  >
                     <div>
                       <label
                         htmlFor="address"
                         className="block text-base md:text-lg font-medium text-slate-700 mb-2 md:mb-3"
                       >
                         Your EVM Address
+                        {inputLocked && (
+                          <span className="text-red-600 text-sm ml-2">
+                            <Lock className="h-4 w-4 inline mr-1" />
+                            Complete all required tasks first
+                          </span>
+                        )}
                       </label>
                       <Input
                         id="address"
                         type="text"
-                        placeholder="0x..."
+                        placeholder={
+                          inputLocked
+                            ? "Complete required tasks to unlock"
+                            : "0x..."
+                        }
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        className="h-12 md:h-14 text-base md:text-lg font-mono bg-white border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                        disabled={isSubmitting}
+                        className={`h-12 md:h-14 text-base md:text-lg font-mono border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 ${
+                          inputLocked
+                            ? "bg-gray-100 cursor-not-allowed"
+                            : "bg-white"
+                        }`}
+                        disabled={isSubmitting || inputLocked}
                       />
                     </div>
                     <Button
                       type="submit"
                       size="lg"
                       className="w-full h-12 md:h-14 text-base md:text-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg font-semibold"
-                      disabled={isSubmitting || !address}
+                      disabled={isSubmitting || !address || inputLocked}
                     >
                       {isSubmitting
                         ? "Submitting..."
-                        : hasFollowed
-                          ? "🚀 Submit & Join Raffle"
-                          : "Follow First to Submit"}
+                        : inputLocked
+                        ? "🔒 Complete Required Tasks First"
+                        : "🚀 Submit & Join Raffle"}
                     </Button>
                     {message && (
                       <div
@@ -477,15 +655,20 @@ Follow for more 👉 @agungfathul
                   {contest.status === "completed" ? (
                     <>
                       <Trophy className="h-12 w-12 md:h-16 md:w-16 text-yellow-500 mx-auto mb-4" />
-                      <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">Contest Completed!</h3>
+                      <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">
+                        Contest Completed!
+                      </h3>
                       <p className="text-slate-600 mb-4 md:mb-6 text-sm md:text-base px-4">
-                        Winners have been selected! Check the history page to see if you won.
+                        Winners have been selected! Check the history page to
+                        see if you won.
                       </p>
                     </>
                   ) : (
                     <>
                       <StopCircle className="h-12 w-12 md:h-16 md:w-16 text-red-500 mx-auto mb-4" />
-                      <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">Submissions Closed!</h3>
+                      <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">
+                        Submissions Closed!
+                      </h3>
                       <p className="text-slate-600 mb-4 md:mb-6 text-sm md:text-base px-4">
                         {contest.submissions_stopped
                           ? "The admin has stopped accepting new submissions. Winners will be announced soon!"
@@ -512,7 +695,11 @@ Follow for more 👉 @agungfathul
             <CardHeader className="bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-t-lg p-3">
               <CardTitle className="text-base md:text-lg flex items-center gap-2">
                 Recent Participants ({submissions.length})
-                {submissionsBlocked && <Badge className="bg-red-500 text-white text-xs">Submissions Closed</Badge>}
+                {submissionsBlocked && (
+                  <Badge className="bg-red-500 text-white text-xs">
+                    Submissions Closed
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 md:p-4">
@@ -526,13 +713,26 @@ Follow for more 👉 @agungfathul
                       className="flex justify-between items-center p-2 md:p-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
                     >
                       <span className="font-mono text-slate-800 text-xs md:text-sm break-all">
-                        {window.innerWidth < 768
-                          ? `${submission.evm_address.slice(0, 8)}...${submission.evm_address.slice(-6)}`
+                        {typeof window !== "undefined" &&
+                        window.innerWidth < 768
+                          ? `${submission.evm_address.slice(
+                              0,
+                              8
+                            )}...${submission.evm_address.slice(-6)}`
                           : submission.evm_address}
                       </span>
                       <div className="flex items-center gap-2 md:gap-3">
+                        <Badge
+                          variant="secondary"
+                          className="text-xs bg-emerald-100 text-emerald-700"
+                        >
+                          {formatMonadAmount(contest.monad_amount)} MONAD
+                        </Badge>
                         <span className="text-xs text-slate-500 hidden md:inline">
-                          {new Date(submission.submitted_at).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta" })}
+                          {new Date(submission.submitted_at).toLocaleTimeString(
+                            "id-ID",
+                            { timeZone: "Asia/Jakarta" }
+                          )}
                         </span>
                       </div>
                     </div>
@@ -543,5 +743,5 @@ Follow for more 👉 @agungfathul
         )}
       </div>
     </div>
-  )
+  );
 }
