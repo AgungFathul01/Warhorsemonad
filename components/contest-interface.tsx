@@ -186,7 +186,8 @@ Hosted by @agungfathul
 Join the fun, win cool stuff, and stay updated on giveaways, art, and exclusive info!
 Follow for more 👉 @agungfathul
 
-#MonadGiveaway #Crypto #Raffle`
+@monad_xyz
+#MonadGiveaway`
 
     const url = window.location.href
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`
