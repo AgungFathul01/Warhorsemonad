@@ -164,13 +164,12 @@ export function ContestInterface({
   }, [contest.end_time, contest.contest_type, contest.manually_stopped]);
 
   const handleTaskComplete = async (taskId: number) => {
-    if (!address) {
-      alert("Please enter your EVM address first to track task completion");
-      return;
-    }
-
     try {
-      const result = await markUserTaskCompleted(contest.id, address, taskId);
+      const result = await markUserTaskCompleted(
+        contest.id,
+        address || "pending",
+        taskId
+      );
       if (result.success) {
         setCompletedTasks((prev) => new Set([...prev, taskId]));
       }
@@ -577,7 +576,6 @@ Follow for more 👉 @agungfathul
                                     size="sm"
                                     variant="outline"
                                     onClick={() => handleTaskComplete(task.id)}
-                                    disabled={!address}
                                   >
                                     Mark Done
                                   </Button>
