@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless"
+import { neon } from "@neondatabase/serverless";
 
 // Use the available environment variables from your workspace
 const databaseUrl =
@@ -6,7 +6,7 @@ const databaseUrl =
   process.env.POSTGRES_URL ||
   process.env.NEON_DATABASE_URL ||
   process.env.POSTGRES_PRISMA_URL ||
-  process.env.POSTGRES_URL_NON_POOLING
+  process.env.POSTGRES_URL_NON_POOLING;
 
 if (!databaseUrl) {
   console.error("Available environment variables:", {
@@ -15,61 +15,61 @@ if (!databaseUrl) {
     NEON_DATABASE_URL: !!process.env.NEON_DATABASE_URL,
     POSTGRES_PRISMA_URL: !!process.env.POSTGRES_PRISMA_URL,
     POSTGRES_URL_NON_POOLING: !!process.env.POSTGRES_URL_NON_POOLING,
-  })
+  });
   throw new Error(
-    "Database connection string not found. Please ensure one of the database environment variables is properly set.",
-  )
+    "Database connection string not found. Please ensure one of the database environment variables is properly set."
+  );
 }
 
-const sql = neon(databaseUrl)
+const sql = neon(databaseUrl);
 
 export interface Contest {
-  id: number
-  monad_amount: string
-  duration_hours: number
-  duration_minutes: number
-  start_time: string
-  end_time: string
-  status: string
-  created_at: string
-  contest_type: "duration" | "participants"
-  max_participants?: number
-  manually_stopped: boolean
-  submissions_stopped: boolean
-  winner_count: number
+  id: number;
+  monad_amount: string;
+  duration_hours: number;
+  duration_minutes: number;
+  start_time: string;
+  end_time: string;
+  status: string;
+  created_at: string;
+  contest_type: "duration" | "participants";
+  max_participants?: number;
+  manually_stopped: boolean;
+  submissions_stopped: boolean;
+  winner_count: number;
 }
 
 export interface Submission {
-  id: number
-  contest_id: number
-  evm_address: string
-  submitted_at: string
+  id: number;
+  contest_id: number;
+  evm_address: string;
+  submitted_at: string;
 }
 
 export interface Winner {
-  id: number
-  contest_id: number
-  evm_address: string
-  monad_amount: string
-  won_at: string
+  id: number;
+  contest_id: number;
+  evm_address: string;
+  monad_amount: string;
+  won_at: string;
 }
 
 export interface ContestTask {
-  id: number
-  contest_id: number
-  task_type: string
-  task_description: string
-  task_url?: string
-  is_required: boolean
-  created_at: string
+  id: number;
+  contest_id: number;
+  task_type: string;
+  task_description: string;
+  task_url?: string;
+  is_required: boolean;
+  created_at: string;
 }
 
 export interface UserTaskCompletion {
-  id: number
-  contest_id: number
-  evm_address: string
-  task_id: number
-  completed_at: string
+  id: number;
+  contest_id: number;
+  evm_address: string;
+  task_id: number;
+  completed_at: string;
 }
 
 export async function getCurrentContest(): Promise<Contest | null> {
@@ -79,11 +79,11 @@ export async function getCurrentContest(): Promise<Contest | null> {
       WHERE status = 'active' 
       ORDER BY created_at DESC 
       LIMIT 1
-    `
-    return result[0] || null
+    `;
+    return result[0] || null;
   } catch (error) {
-    console.error("Error fetching current contest:", error)
-    return null
+    console.error("Error fetching current contest:", error);
+    return null;
   }
 }
 
@@ -94,66 +94,82 @@ export async function getLastCompletedContest(): Promise<Contest | null> {
       WHERE status = 'completed' 
       ORDER BY created_at DESC 
       LIMIT 1
-    `
-    return result[0] || null
+    `;
+    return result[0] || null;
   } catch (error) {
-    console.error("Error fetching last completed contest:", error)
-    return null
+    console.error("Error fetching last completed contest:", error);
+    return null;
   }
 }
 
-export async function getContestSubmissions(contestId: number): Promise<Submission[]> {
+export async function getContestSubmissions(
+  contestId: number
+): Promise<Submission[]> {
   try {
     const result = await sql`
       SELECT * FROM submissions 
       WHERE contest_id = ${contestId}
       ORDER BY submitted_at ASC
-    `
-    return result as Submission[]
+    `;
+    return result as Submission[];
   } catch (error) {
-    console.error("Error fetching contest submissions:", error)
-    return []
+    console.error("Error fetching contest submissions:", error);
+    return [];
   }
 }
 
-export async function getContestTasks(contestId: number): Promise<ContestTask[]> {
+export async function getContestTasks(
+  contestId: number
+): Promise<ContestTask[]> {
   try {
     const result = await sql`
       SELECT * FROM contest_tasks 
       WHERE contest_id = ${contestId}
       ORDER BY created_at ASC
-    `
-    return result as ContestTask[]
+    `;
+    return result as ContestTask[];
   } catch (error) {
-    console.error("Error fetching contest tasks:", error)
-    return []
+    console.error("Error fetching contest tasks:", error);
+    return [];
   }
 }
 
-export async function getUserTaskCompletions(contestId: number, evmAddress: string): Promise<UserTaskCompletion[]> {
+export async function getUserTaskCompletions(
+  contestId: number,
+  evmAddress: string
+): Promise<UserTaskCompletion[]> {
   try {
     const result = await sql`
       SELECT * FROM user_task_completions 
       WHERE contest_id = ${contestId} AND evm_address = ${evmAddress}
-    `
-    return result as UserTaskCompletion[]
+    `;
+    return result as UserTaskCompletion[];
   } catch (error) {
-    console.error("Error fetching user task completions:", error)
-    return []
+    console.error("Error fetching user task completions:", error);
+    return [];
   }
 }
 
-export async function markTaskCompleted(contestId: number, evmAddress: string, taskId: number) {
+export async function markTaskCompleted(
+  contestId: number,
+  evmAddress: string,
+  taskId: number
+) {
   try {
+    // Use a temporary address if none provided
+    const address =
+      evmAddress === "pending"
+        ? "0x0000000000000000000000000000000000000000"
+        : evmAddress;
     await sql`
       INSERT INTO user_task_completions (contest_id, evm_address, task_id)
-      VALUES (${contestId}, ${evmAddress}, ${taskId})
+      VALUES (${contestId}, ${address}, ${taskId})
       ON CONFLICT (contest_id, evm_address, task_id) DO NOTHING
-    `
-    return { success: true }
+    `;
+    return { success: true };
   } catch (error) {
-    console.error("Error marking task completed:", error)
-    return { success: false, error: "Failed to mark task as completed" }
+    console.error("Error marking task completed:", error);
+    return { success: false, error: "Failed to mark task as completed" };
   }
 }
 
@@ -163,87 +179,74 @@ export async function submitAddress(contestId: number, evmAddress: string) {
     const contest = await sql`
       SELECT submissions_stopped, status FROM contests 
       WHERE id = ${contestId}
-    `
+    `;
 
     if (!contest[0] || contest[0].status !== "active") {
-      return { success: false, error: "Contest is not active" }
+      return { success: false, error: "Contest is not active" };
     }
 
     if (contest[0].submissions_stopped) {
-      return { success: false, error: "Submissions have been stopped by admin" }
-    }
-
-    // Check if all required tasks are completed
-    const requiredTasks = await sql`
-      SELECT id FROM contest_tasks 
-      WHERE contest_id = ${contestId} AND is_required = true
-    `
-
-    const completedTasks = await sql`
-      SELECT task_id FROM user_task_completions 
-      WHERE contest_id = ${contestId} AND evm_address = ${evmAddress}
-    `
-
-    const completedTaskIds = completedTasks.map((ct) => ct.task_id)
-    const uncompletedRequiredTasks = requiredTasks.filter((rt) => !completedTaskIds.includes(rt.id))
-
-    if (uncompletedRequiredTasks.length > 0) {
-      return { success: false, error: "Please complete all required tasks before submitting" }
+      return {
+        success: false,
+        error: "Submissions have been stopped by admin",
+      };
     }
 
     await sql`
       INSERT INTO submissions (contest_id, evm_address)
       VALUES (${contestId}, ${evmAddress})
-    `
-    return { success: true }
+    `;
+    return { success: true };
   } catch (error: any) {
-    console.error("Error submitting address:", error)
+    console.error("Error submitting address:", error);
     if (error.message?.includes("duplicate") || error.code === "23505") {
-      return { success: false, error: "Address already submitted" }
+      return { success: false, error: "Address already submitted" };
     }
-    return { success: false, error: "Failed to submit address" }
+    return { success: false, error: "Failed to submit address" };
   }
 }
 
 export async function createContest(
+  contestName: string,
   monadAmount: number,
   contestType: "duration" | "participants",
   durationMinutes?: number,
   maxParticipants?: number,
-  winnerCount = 1,
+  winnerCount = 1
 ) {
   try {
     console.log("Database createContest called with:", {
+      contestName,
       monadAmount,
       contestType,
       durationMinutes,
       maxParticipants,
       winnerCount,
-    })
+    });
 
     // End current contest
     await sql`
       UPDATE contests 
       SET status = 'ended' 
       WHERE status = 'active'
-    `
+    `;
 
-    let endTime = null
-    let durationHours = null
+    let endTime = null;
+    let durationHours = null;
 
     if (contestType === "duration" && durationMinutes) {
       // Validate duration
       if (durationMinutes <= 0) {
-        throw new Error(`Invalid duration: ${durationMinutes} minutes`)
+        throw new Error(`Invalid duration: ${durationMinutes} minutes`);
       }
 
       // Use UTC time consistently - get current UTC time from database
-      const dbTimeResult = await sql`SELECT NOW() as current_time`
-      const dbCurrentTime = new Date(dbTimeResult[0].current_time)
+      const dbTimeResult = await sql`SELECT NOW() as current_time`;
+      const dbCurrentTime = new Date(dbTimeResult[0].current_time);
 
       // Add duration to database time (both in UTC)
-      endTime = new Date(dbCurrentTime.getTime() + durationMinutes * 60 * 1000)
-      durationHours = Math.ceil(durationMinutes / 60)
+      endTime = new Date(dbCurrentTime.getTime() + durationMinutes * 60 * 1000);
+      durationHours = Math.ceil(durationMinutes / 60);
 
       console.log("Duration contest timing (UTC):", {
         dbCurrentTime: dbCurrentTime.toISOString(),
@@ -251,14 +254,17 @@ export async function createContest(
         durationMinutes,
         durationHours,
         timeDifferenceMs: endTime.getTime() - dbCurrentTime.getTime(),
-        timeDifferenceMinutes: (endTime.getTime() - dbCurrentTime.getTime()) / (1000 * 60),
-        localTime: new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }),
+        timeDifferenceMinutes:
+          (endTime.getTime() - dbCurrentTime.getTime()) / (1000 * 60),
+        localTime: new Date().toLocaleString("id-ID", {
+          timeZone: "Asia/Jakarta",
+        }),
         utcTime: new Date().toISOString(),
-      })
+      });
     } else {
       // For participant-based contests, set a default duration_hours value
-      durationHours = 24 // Default to 24 hours for participant-based contests
-      console.log("Participant contest created with default 24h duration")
+      durationHours = 24; // Default to 24 hours for participant-based contests
+      console.log("Participant contest created with default 24h duration");
     }
 
     const result = await sql`
@@ -275,6 +281,7 @@ export async function createContest(
         submissions_stopped
       )
       VALUES (
+        ${contestName},
         ${monadAmount}, 
         ${contestType}, 
         ${durationMinutes || null}, 
@@ -287,9 +294,9 @@ export async function createContest(
         false
       )
       RETURNING *
-    `
+    `;
 
-    const createdContest = result[0] as Contest
+    const createdContest = result[0] as Contest;
 
     // Create default follow task for the contest
     await sql`
@@ -301,7 +308,7 @@ export async function createContest(
         'https://x.com/agungfathul',
         true
       )
-    `
+    `;
 
     console.log("Contest successfully created in database:", {
       id: createdContest.id,
@@ -311,12 +318,12 @@ export async function createContest(
       contest_type: createdContest.contest_type,
       start_time: createdContest.start_time,
       submissions_stopped: createdContest.submissions_stopped,
-    })
+    });
 
-    return createdContest
+    return createdContest;
   } catch (error) {
-    console.error("Error creating contest:", error)
-    throw error
+    console.error("Error creating contest:", error);
+    throw error;
   }
 }
 
@@ -325,18 +332,20 @@ export async function addContestTask(
   taskType: string,
   taskDescription: string,
   taskUrl?: string,
-  isRequired = true,
+  isRequired = true
 ) {
   try {
     const result = await sql`
       INSERT INTO contest_tasks (contest_id, task_type, task_description, task_url, is_required)
-      VALUES (${contestId}, ${taskType}, ${taskDescription}, ${taskUrl || null}, ${isRequired})
+      VALUES (${contestId}, ${taskType}, ${taskDescription}, ${
+      taskUrl || null
+    }, ${isRequired})
       RETURNING *
-    `
-    return result[0] as ContestTask
+    `;
+    return result[0] as ContestTask;
   } catch (error) {
-    console.error("Error adding contest task:", error)
-    throw error
+    console.error("Error adding contest task:", error);
+    throw error;
   }
 }
 
@@ -346,12 +355,12 @@ export async function stopSubmissions(contestId: number) {
       UPDATE contests 
       SET submissions_stopped = TRUE
       WHERE id = ${contestId}
-    `
-    console.log("Submissions stopped for contest:", contestId)
-    return { success: true }
+    `;
+    console.log("Submissions stopped for contest:", contestId);
+    return { success: true };
   } catch (error) {
-    console.error("Error stopping submissions:", error)
-    throw error
+    console.error("Error stopping submissions:", error);
+    throw error;
   }
 }
 
@@ -361,78 +370,82 @@ export async function stopContest(contestId: number) {
       UPDATE contests 
       SET manually_stopped = TRUE, status = 'ended'
       WHERE id = ${contestId}
-    `
+    `;
 
-    return await selectWinners(contestId)
+    return await selectWinners(contestId);
   } catch (error) {
-    console.error("Error stopping contest:", error)
-    throw error
+    console.error("Error stopping contest:", error);
+    throw error;
   }
 }
 
 export async function selectWinners(contestId: number) {
   try {
-    const submissions = await getContestSubmissions(contestId)
-    if (submissions.length === 0) return []
+    const submissions = await getContestSubmissions(contestId);
+    if (submissions.length === 0) return [];
 
     const contest = await sql`
       SELECT * FROM contests WHERE id = ${contestId}
-    `
+    `;
 
-    const winnerCount = contest[0].winner_count || 1
-    const actualWinnerCount = Math.min(winnerCount, submissions.length)
+    const winnerCount = contest[0].winner_count || 1;
+    const actualWinnerCount = Math.min(winnerCount, submissions.length);
 
     // Shuffle submissions and select winners
-    const shuffled = [...submissions].sort(() => Math.random() - 0.5)
-    const selectedWinners = shuffled.slice(0, actualWinnerCount)
+    const shuffled = [...submissions].sort(() => Math.random() - 0.5);
+    const selectedWinners = shuffled.slice(0, actualWinnerCount);
 
     // Insert winners into database
     for (const winner of selectedWinners) {
       await sql`
         INSERT INTO winners (contest_id, evm_address, monad_amount)
         VALUES (${contestId}, ${winner.evm_address}, ${contest[0].monad_amount})
-      `
+      `;
     }
 
     await sql`
       UPDATE contests 
       SET status = 'completed' 
       WHERE id = ${contestId}
-    `
+    `;
 
-    return selectedWinners
+    return selectedWinners;
   } catch (error) {
-    console.error("Error selecting winners:", error)
-    throw error
+    console.error("Error selecting winners:", error);
+    throw error;
   }
 }
 
-export async function getAllWinners(): Promise<(Winner & { contest: Contest })[]> {
+export async function getAllWinners(): Promise<
+  (Winner & { contest: Contest })[]
+> {
   try {
     const result = await sql`
       SELECT w.*, c.start_time, c.end_time, c.duration_minutes, c.contest_type, c.max_participants, c.winner_count
       FROM winners w
       JOIN contests c ON w.contest_id = c.id
       ORDER BY w.won_at DESC
-    `
-    return result as (Winner & { contest: Contest })[]
+    `;
+    return result as (Winner & { contest: Contest })[];
   } catch (error) {
-    console.error("Error fetching all winners:", error)
-    return []
+    console.error("Error fetching all winners:", error);
+    return [];
   }
 }
 
-export async function getWinnersByContest(contestId: number): Promise<Winner[]> {
+export async function getWinnersByContest(
+  contestId: number
+): Promise<Winner[]> {
   try {
     const result = await sql`
       SELECT * FROM winners 
       WHERE contest_id = ${contestId}
       ORDER BY won_at DESC
-    `
-    return result as Winner[]
+    `;
+    return result as Winner[];
   } catch (error) {
-    console.error("Error fetching winners by contest:", error)
-    return []
+    console.error("Error fetching winners by contest:", error);
+    return [];
   }
 }
 
@@ -445,18 +458,23 @@ export async function checkAndProcessExpiredContests() {
       AND contest_type = 'duration'
       AND end_time < NOW()
       AND manually_stopped = false
-    `
+    `;
 
-    console.log("Found expired contests:", expiredContests.length)
+    console.log("Found expired contests:", expiredContests.length);
 
     for (const contest of expiredContests) {
-      console.log("Processing expired contest:", contest.id, "ended at:", contest.end_time)
+      console.log(
+        "Processing expired contest:",
+        contest.id,
+        "ended at:",
+        contest.end_time
+      );
       // Stop submissions for expired contests
       await sql`
         UPDATE contests 
         SET submissions_stopped = TRUE
         WHERE id = ${contest.id}
-      `
+      `;
     }
 
     // Check participant-based contests that have reached their limit
@@ -469,20 +487,20 @@ export async function checkAndProcessExpiredContests() {
       AND c.manually_stopped = false
       GROUP BY c.id
       HAVING COUNT(s.id) >= c.max_participants
-    `
+    `;
 
-    console.log("Found full participant contests:", participantContests.length)
+    console.log("Found full participant contests:", participantContests.length);
 
     for (const contest of participantContests) {
-      console.log("Processing full participant contest:", contest.id)
+      console.log("Processing full participant contest:", contest.id);
       // Stop submissions for full participant contests
       await sql`
         UPDATE contests 
         SET submissions_stopped = TRUE
         WHERE id = ${contest.id}
-      `
+      `;
     }
   } catch (error) {
-    console.error("Error processing expired contests:", error)
+    console.error("Error processing expired contests:", error);
   }
 }
