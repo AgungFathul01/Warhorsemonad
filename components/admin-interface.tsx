@@ -20,7 +20,6 @@ interface AdminInterfaceProps {
 }
 
 export function AdminInterface({ contest, submissions, winners }: AdminInterfaceProps) {
-  const [contestName, setContestName] = useState("")
   const [monadAmount, setMonadAmount] = useState("")
   const [isCreating, setIsCreating] = useState(false)
   const [contestType, setContestType] = useState<"duration" | "participants">("duration")
@@ -40,12 +39,6 @@ export function AdminInterface({ contest, submissions, winners }: AdminInterface
     const winners = Number.parseInt(winnerCount)
 
     // Validate inputs
-    if (!contestName.trim()) {
-      alert("Please enter a contest name")
-      setIsCreating(false)
-      return
-    }
-
     if (contestType === "duration" && (!duration || duration <= 0)) {
       alert("Please enter a valid duration in minutes (greater than 0)")
       setIsCreating(false)
@@ -65,7 +58,6 @@ export function AdminInterface({ contest, submissions, winners }: AdminInterface
     }
 
     console.log("Creating contest with:", {
-      contestName,
       monadAmount: Number.parseFloat(monadAmount),
       contestType,
       duration,
@@ -74,9 +66,8 @@ export function AdminInterface({ contest, submissions, winners }: AdminInterface
     })
 
     try {
-      await createNewContest(contestName, Number.parseFloat(monadAmount), contestType, duration, participants, winners)
+      await createNewContest(Number.parseFloat(monadAmount), contestType, duration, participants, winners)
 
-      setContestName("")
       setMonadAmount("")
       setDurationMinutes("")
       setMaxParticipants("")
@@ -144,23 +135,7 @@ export function AdminInterface({ contest, submissions, winners }: AdminInterface
 
   const contestNaturallyEnded = isContestNaturallyEnded()
   const submissionsStopped = contest?.submissions_stopped || contestNaturallyEnded
-  const canSelectWinners = contest && contest.status === "active" && submissions.length > 0 && submissionsStopped
-
-  // Group winners by contest - with null check
-  const winnersByContest = winners.reduce(
-    (acc, winner) => {
-      const contestId = winner.contest_id
-      if (!acc[contestId]) {
-        acc[contestId] = {
-          contest: winner.contest,
-          winners: [],
-        }
-      }
-      acc[contestId].winners.push(winner)
-      return acc
-    },
-    {} as Record<number, { contest: Contest; winners: Winner[] }>,
-  )
+  const canSelectWinners = contest && contest.status === "active" && submissions.length > 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-100">
@@ -200,21 +175,6 @@ export function AdminInterface({ contest, submissions, winners }: AdminInterface
             </CardHeader>
             <CardContent className="p-4 md:p-6">
               <form onSubmit={handleCreateContest} className="space-y-4 md:space-y-6">
-                <div>
-                  <Label htmlFor="contest-name" className="text-slate-700 font-medium">
-                    Contest Name
-                  </Label>
-                  <Input
-                    id="contest-name"
-                    type="text"
-                    placeholder="Monad Spring Giveaway 2024"
-                    value={contestName}
-                    onChange={(e) => setContestName(e.target.value)}
-                    className="mt-2 bg-white border-slate-300 focus:border-indigo-500"
-                    required
-                  />
-                </div>
-
                 <div>
                   <Label htmlFor="monad-amount" className="text-slate-700 font-medium">
                     Monad Amount (per winner)
@@ -334,13 +294,6 @@ export function AdminInterface({ contest, submissions, winners }: AdminInterface
             <CardContent className="p-4 md:p-6">
               {contest ? (
                 <div className="space-y-4">
-                  {/* Contest Name - with null check */}
-                  <div className="text-center">
-                    <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">
-                      {contest.contest_name || "Unnamed Contest"}
-                    </h3>
-                  </div>
-
                   {/* Contest Status Alerts */}
                   {contestNaturallyEnded && (
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
@@ -436,7 +389,7 @@ export function AdminInterface({ contest, submissions, winners }: AdminInterface
                         </Button>
                       )}
 
-                      {/* Select Winners Button - Only show when submissions are stopped */}
+                      {/* Select Winners Button */}
                       {canSelectWinners && (
                         <Button
                           onClick={handleSelectWinners}
@@ -508,50 +461,33 @@ export function AdminInterface({ contest, submissions, winners }: AdminInterface
           </Card>
         )}
 
-        {/* Winners History - Grouped by Contest */}
+        {/* Winners History */}
         <Card className="bg-white/70 backdrop-blur-sm border-white/50 shadow-xl">
           <CardHeader className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-t-lg">
             <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
               <Trophy className="h-5 w-5 md:h-6 md:w-6" />
               Winners History
             </CardTitle>
-            <CardDescription className="text-yellow-100 text-sm md:text-base">
-              All past contest winners grouped by contest
-            </CardDescription>
+            <CardDescription className="text-yellow-100 text-sm md:text-base">All past contest winners</CardDescription>
           </CardHeader>
           <CardContent className="p-4 md:p-6">
-            {Object.keys(winnersByContest).length > 0 ? (
-              <div className="space-y-6 max-h-96 overflow-y-auto">
-                {Object.values(winnersByContest).map(({ contest: winnerContest, winners: contestWinners }) => (
+            {winners.length > 0 ? (
+              <div className="space-y-4 max-h-60 md:max-h-80 overflow-y-auto">
+                {winners.map((winner) => (
                   <div
-                    key={winnerContest.id}
-                    className="border border-yellow-200 rounded-lg p-4 bg-gradient-to-r from-yellow-50 to-orange-50"
+                    key={winner.id}
+                    className="border border-yellow-200 rounded-lg p-3 md:p-4 bg-gradient-to-r from-yellow-50 to-orange-50"
                   >
-                    <div className="mb-4">
-                      <h3 className="text-lg font-bold text-slate-800 mb-1">
-                        {winnerContest.contest_name || "Unnamed Contest"}
-                      </h3>
-                      <div className="flex items-center gap-4 text-sm text-slate-600">
-                        <span>Prize: {formatMonadAmount(winnerContest.monad_amount)} MONAD each</span>
-                        <span>Winners: {contestWinners.length}</span>
-                        <span>Date: {new Date(contestWinners[0].won_at).toLocaleDateString()}</span>
+                    <div className="flex justify-between items-start flex-wrap gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-mono text-sm text-slate-800 break-all">{winner.evm_address}</p>
+                        <p className="text-sm text-yellow-700 mt-1">
+                          Won {formatMonadAmount(winner.monad_amount)} MONAD
+                        </p>
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      {contestWinners.map((winner, index) => (
-                        <div
-                          key={winner.id}
-                          className="flex justify-between items-center p-3 bg-white border border-yellow-200 rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Badge className="bg-yellow-500 text-white">#{index + 1}</Badge>
-                            <span className="font-mono text-sm text-slate-800 break-all">{winner.evm_address}</span>
-                          </div>
-                          <Badge variant="outline" className="text-xs border-yellow-300 text-yellow-600">
-                            {formatMonadAmount(winner.monad_amount)} MONAD
-                          </Badge>
-                        </div>
-                      ))}
+                      <Badge variant="outline" className="ml-2 md:ml-4 text-xs">
+                        {new Date(winner.won_at).toLocaleDateString()}
+                      </Badge>
                     </div>
                   </div>
                 ))}
